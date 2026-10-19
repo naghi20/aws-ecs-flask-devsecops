@@ -1,4 +1,4 @@
-# Flask API on AWS ECS Fargate with DevSecOps
+# AWS ECS Flask DevSecOps CI/CD Platform
 
 A portfolio project demonstrating a secure, automated CI/CD platform for a containerized Flask API on AWS.
 
@@ -13,34 +13,88 @@ GitHub push
   -> Flask API connects privately to RDS PostgreSQL
 ```
 
-## Security controls
+## Placeholders to replace before deployment
 
-- Private application subnets for ECS Fargate tasks
-- Isolated database subnets for RDS
-- ALB is the only internet-facing entry point
-- Security-group chaining: ALB -> API -> RDS
-- Secrets Manager and customer-managed KMS encryption for DB credentials
-- Least-privilege IAM execution-role policy
-- Non-root Docker container user
-- ECR scan-on-push
-- Trivy dependency and filesystem scanning
-- Checkov Terraform IaC scanning
-- ECS deployment circuit breaker with automatic rollback
+Search the entire repository for:
+
+```text
+REPLACE_WITH_
+```
+
+You must replace every match before deploying.
+
+### 1. Terraform remote state
+
+File: `infra/versions.tf`
+
+```hcl
+bucket = "REPLACE_WITH_UNIQUE_TERRAFORM_STATE_BUCKET"
+```
+
+Replace it with your globally unique S3 state bucket name, for example:
+
+```text
+ahmed-terraform-state-bh-2026
+```
+
+### 2. ECS task definition
+
+File: `ecs/task-definition.json`
+
+| Placeholder | Replace with |
+|---|---|
+| `REPLACE_WITH_ECS_EXECUTION_ROLE_ARN` | ECS task execution role ARN |
+| `REPLACE_WITH_ECS_TASK_ROLE_ARN` | ECS task role ARN |
+| `REPLACE_WITH_ECR_IMAGE` | Full ECR image URI |
+| `REPLACE_WITH_RDS_ENDPOINT` | RDS PostgreSQL endpoint |
+| `REPLACE_WITH_SECRET_ARN` | Secrets Manager secret ARN |
+
+After running `terraform apply`, get these values from Terraform outputs:
+
+```bash
+cd infra
+terraform output
+```
+
+Example ECR image value:
+
+```text
+123456789012.dkr.ecr.eu-central-1.amazonaws.com/aws-ecs-flask-devsecops:abc123
+```
+
+### 3. GitHub Actions secrets
+
+Go to:
+
+```text
+GitHub repository -> Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+Create:
+
+| Secret | Value |
+|---|---|
+| `AWS_REGION` | For example, `eu-central-1` |
+| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC deployment role ARN |
+| `ECR_REPOSITORY` | `aws-ecs-flask-devsecops` |
+| `ECS_CLUSTER_NAME` | `aws-ecs-flask-devsecops-cluster` |
+| `ECS_SERVICE_NAME` | `aws-ecs-flask-devsecops-api` |
+
+Use GitHub OIDC and a least-privilege IAM role; do not store long-lived AWS access keys in GitHub.
 
 ## Local development
 
 ```bash
 docker compose up --build
 curl http://localhost:8000/health
+curl http://localhost:8000/ready
 ```
 
-## Deployment
+## Deployment order
 
-1. Create an S3 bucket and DynamoDB table for Terraform remote state and locking.
-2. Update `infra/versions.tf` with your state bucket name.
-3. Create an OIDC GitHub Actions deploy role with least-privilege ECS/ECR permissions.
-4. Set repository secrets: `AWS_REGION`, `AWS_DEPLOY_ROLE_ARN`, `ECR_REPOSITORY`, `ECS_CLUSTER_NAME`, and `ECS_SERVICE_NAME`.
-5. Run:
+1. Create the Terraform state S3 bucket and DynamoDB lock table.
+2. Replace the S3 bucket placeholder in `infra/versions.tf`.
+3. Run:
 
 ```bash
 cd infra
@@ -49,12 +103,28 @@ terraform plan
 terraform apply
 ```
 
-6. Push to `main`; GitHub Actions builds, scans, publishes, and deploys the image.
+4. Copy Terraform outputs into `ecs/task-definition.json`.
+5. Add the GitHub Actions secrets.
+6. Push the project to GitHub.
+7. Push to `main`; GitHub Actions builds, scans, publishes, and deploys the image.
+
+## Security controls
+
+- Multi-AZ VPC with public, private application, and isolated database subnets
+- ALB as the only internet-facing entry point
+- Security-group chaining: ALB -> Flask API -> RDS
+- Private ECS Fargate tasks and private RDS
+- Secrets Manager with customer-managed KMS encryption
+- Least-privilege IAM execution-role policy
+- Non-root Docker user
+- ECR scan-on-push
+- Trivy and Checkov CI security scans
+- ECS deployment circuit breaker with rollback
 
 ## API endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | Container/application health check |
-| GET | `/ready` | Database connectivity readiness check |
+| GET | `/health` | Application health check |
+| GET | `/ready` | Database readiness check |
 | GET | `/users` | Returns users from PostgreSQL |
