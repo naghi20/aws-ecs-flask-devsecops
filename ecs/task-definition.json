@@ -1,0 +1,52 @@
+{
+  "family": "flask-aws-ecs-devsecops-api",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "REPLACE_WITH_ECS_EXECUTION_ROLE_ARN",
+  "taskRoleArn": "REPLACE_WITH_ECS_TASK_ROLE_ARN",
+  "containerDefinitions": [
+    {
+      "name": "flask-api",
+      "image": "REPLACE_WITH_ECR_IMAGE",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DB_HOST",
+          "value": "REPLACE_WITH_RDS_ENDPOINT"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "appdb"
+        },
+        {
+          "name": "DB_USER",
+          "value": "appadmin"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "REPLACE_WITH_SECRET_ARN"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/flask-aws-ecs-devsecops/flask-api",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "flask-api"
+        }
+      }
+    }
+  ]
+}
